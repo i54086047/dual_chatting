@@ -44,5 +44,8 @@ def analyze():
     return jsonify({"analysis": result})
 
 if __name__ == '__main__':
-    print("✅ Flask server is starting... Please open your browser and go to http://127.0.0.1:5000")
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get("PORT", 10000))  # Render 會提供這個 PORT
+    print(f"✅ Flask server is starting on http://0.0.0.0:{port}")
+    app.run(host='0.0.0.0', port=port)
+
