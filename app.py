@@ -1,58 +1,42 @@
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
-import openai
 import os
 from dotenv import load_dotenv
+import openai
 
-# === 載入 API 金鑰 ===
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# === 建立 Flask app 與 SocketIO ===
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-# === 路由：首頁 ===
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-# === 路由：分析對話 ===
-@app.route('/analyze', methods=['POST'])
+@app.route("/analyze", methods=["POST"])
 def analyze():
     data = request.get_json()
     messages = data.get("messages", [])
-    if not messages:
-        return jsonify({"analysis": "⚠️ 尚未輸入對話內容。"})
+    
+    prompt = "請你擔任一位個性分析師。根據以下對話紀錄，請分析雙方的性格特質，並分別用 Big Five、MBTI、依附類型、薩提爾對話模式簡要描述 A 與 B。\n\n"
+    for msg in messages:
+        prompt += f"{msg['sender']}: {msg['text']}\n"
+    
+    response = openai.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    result = response.choices[0].message.content.strip()
+    return jsonify({"analysis": result})
 
-    # 格式轉換為 GPT 對話格式
-    chat_history = "\n".join(f"{msg['sender']}: {msg['text']}" for msg in messages)
+# === WebSocket handling ===
+@socketio.on("send_message")
+def handle_send_message(data):
+    sender = data.get("sender")
+    text = data.get("text")
+    emit("receive_message", {"sender": sender, "text": text}, broadcast=True)
 
-    prompt = f"""
-你是一位心理分析師。根據以下對話紀錄，請分析 A 與 B 的性格特質，以及他們之間的互動風格，最後請給予一句有趣的總結或比喻。
-
-對話紀錄：
-{chat_history}
-"""
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=500
-        )
-        analysis = response['choices'][0]['message']['content'].strip()
-        return jsonify({"analysis": analysis})
-    except Exception as e:
-        return jsonify({"analysis": f"❌ 發生錯誤：{str(e)}"})
-
-# === SocketIO: 接收訊息並廣播 ===
-@socketio.on('message')
-def handle_message(data):
-    emit('message', data, broadcast=True)
-
-# === 主程式入口點 ===
-if __name__ == '__main__':
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host='0.0.0.0', port=port, debug=True, allow_unsafe_werkzeug=True)
-
+    socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
