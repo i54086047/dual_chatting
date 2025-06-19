@@ -2,14 +2,13 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>即時雙人聊天分析器</title>
+  <title>對話人格分析器</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
-  <h1>💬 雙人即時聊天分析器</h1>
-
-  <div id="chat-box" style="border:1px solid #ccc; height:300px; overflow-y:scroll; padding:10px; margin-bottom:10px;"></div>
+  <h1>🧠 雙人對話人格分析</h1>
+  <div id="chat-box"></div>
 
   <div class="input-row">
     <select id="sender">
@@ -20,29 +19,33 @@
     <button onclick="sendMessage()">送出</button>
   </div>
 
-  <button onclick="analyze()">🔍 分析對話</button>
+  <button onclick="analyze()">🧬 分析對話</button>
 
-  <div id="analysis" style="margin-top:20px;"></div>
+  <div id="analysis"></div>
 
   <script>
     const socket = io();
-    const chatBox = document.getElementById("chat-box");
     const messages = [];
 
-    socket.on("receive_message", data => {
-      messages.push(data);
+    socket.on("receive_message", ({ sender, text }) => {
+      messages.push({ sender, text });
+      appendMessage(sender, text);
+    });
+
+    function appendMessage(sender, text) {
+      const chatBox = document.getElementById("chat-box");
       const msgDiv = document.createElement("div");
-      msgDiv.innerText = `${data.sender}: ${data.text}`;
+      msgDiv.innerText = `${sender}: ${text}`;
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
-    });
+    }
 
     function sendMessage() {
       const sender = document.getElementById("sender").value;
-      const text = document.getElementById("message").value;
-      if (!text.trim()) return;
+      const text = document.getElementById("message").value.trim();
+      if (!text) return;
       socket.emit("send_message", { sender, text });
-      document.getElementById("message").value = '';
+      document.getElementById("message").value = "";
     }
 
     function analyze() {
@@ -57,8 +60,12 @@
       });
     }
 
-    document.getElementById("message").addEventListener("keydown", function(e) {
-      if (e.key === "Enter") sendMessage();
+    // 支援 Enter 鍵送出訊息
+    document.getElementById("message").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendMessage();
+      }
     });
   </script>
 </body>
