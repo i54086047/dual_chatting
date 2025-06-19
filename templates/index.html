@@ -5,6 +5,15 @@
   <title>對話人格分析器</title>
   <link rel="stylesheet" href="/static/style.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    #chat-box {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 1em;
+    }
+  </style>
 </head>
 <body>
   <h1>🧠 雙人對話人格分析</h1>
@@ -60,13 +69,15 @@
       });
     }
 
-    // 支援 Enter 鍵送出訊息
-    document.getElementById("message").addEventListener("keypress", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
+    // 等待 DOM 載入完成再綁定按鍵事件
+    window.onload = function () {
+      document.getElementById("message").addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    };
   </script>
 </body>
 </html>
