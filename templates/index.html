@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>對話人格分析器</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>🧠 雙人對話人格分析</h1>
+  <div id="chat-box"></div>
+
+  <div class="input-row">
+    <select id="sender">
+      <option value="A">A</option>
+      <option value="B">B</option>
+    </select>
+    <input type="text" id="message" placeholder="輸入訊息...">
+    <button onclick="sendMessage()">送出</button>
+  </div>
+
+  <button onclick="analyze()">🧬 分析對話</button>
+
+  <div id="analysis"></div>
+
+  <script>
+    const messages = [];
+
+    function sendMessage() {
+      const sender = document.getElementById("sender").value;
+      const text = document.getElementById("message").value;
+      if (!text.trim()) return;
+
+      messages.push({ sender, text });
+
+      const chatBox = document.getElementById("chat-box");
+      const msgDiv = document.createElement("div");
+      msgDiv.innerText = `${sender}: ${text}`;
+      chatBox.appendChild(msgDiv);
+
+      document.getElementById("message").value = '';
+    }
+
+    function analyze() {
+      fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("analysis").innerText = data.analysis;
+      });
+    }
+  </script>
+</body>
+</html>

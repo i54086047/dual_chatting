@@ -1,0 +1,25 @@
+body {
+  font-family: sans-serif;
+  max-width: 600px;
+  margin: auto;
+  padding: 2rem;
+}
+#chat-box {
+  border: 1px solid #ccc;
+  padding: 1rem;
+  height: 200px;
+  overflow-y: scroll;
+  margin-bottom: 1rem;
+  background: #f9f9f9;
+}
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+#analysis {
+  white-space: pre-wrap;
+  background: #e7f5ff;
+  padding: 1rem;
+  border: 1px solid #ccc;
+}
