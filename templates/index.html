@@ -13,28 +13,35 @@
       padding: 10px;
       margin-bottom: 1em;
     }
+    #login-box {
+      margin-bottom: 1em;
+    }
   </style>
 </head>
 <body>
   <h1>🧠 雙人對話人格分析</h1>
-  <div id="chat-box"></div>
 
-  <div class="input-row">
-    <select id="sender">
-      <option value="A">A</option>
-      <option value="B">B</option>
-    </select>
-    <input type="text" id="message" placeholder="輸入訊息...">
-    <button onclick="sendMessage()">送出</button>
+  <div id="login-box">
+    <input type="text" id="username" placeholder="輸入你的名稱...">
+    <button onclick="login()">登入</button>
   </div>
 
-  <button onclick="analyze()">🧬 分析對話</button>
+  <div id="chat-section" style="display: none;">
+    <div id="chat-box"></div>
 
-  <div id="analysis"></div>
+    <div class="input-row">
+      <input type="text" id="message" placeholder="輸入訊息...">
+      <button onclick="sendMessage()">送出</button>
+    </div>
+
+    <button onclick="analyze()">🧬 分析對話</button>
+    <div id="analysis"></div>
+  </div>
 
   <script>
     const socket = io();
     const messages = [];
+    let currentUser = null;
 
     socket.on("receive_message", ({ sender, text }) => {
       messages.push({ sender, text });
@@ -49,11 +56,20 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    function login() {
+      const nameInput = document.getElementById("username");
+      const name = nameInput.value.trim();
+      if (!name) return alert("請輸入你的名稱");
+      currentUser = name;
+      localStorage.setItem("username", name);
+      document.getElementById("login-box").style.display = "none";
+      document.getElementById("chat-section").style.display = "block";
+    }
+
     function sendMessage() {
-      const sender = document.getElementById("sender").value;
       const text = document.getElementById("message").value.trim();
-      if (!text) return;
-      socket.emit("send_message", { sender, text });
+      if (!text || !currentUser) return;
+      socket.emit("send_message", { sender: currentUser, text });
       document.getElementById("message").value = "";
     }
 
@@ -69,8 +85,14 @@
       });
     }
 
-    // 等待 DOM 載入完成再綁定按鍵事件
     window.onload = function () {
+      const storedName = localStorage.getItem("username");
+      if (storedName) {
+        currentUser = storedName;
+        document.getElementById("login-box").style.display = "none";
+        document.getElementById("chat-section").style.display = "block";
+      }
+
       document.getElementById("message").addEventListener("keypress", function (e) {
         if (e.key === "Enter") {
           e.preventDefault();
