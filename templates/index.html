@@ -16,6 +16,11 @@
     #login-box {
       margin-bottom: 1em;
     }
+    .message-time {
+      font-size: 0.8em;
+      color: #888;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
@@ -43,15 +48,15 @@
     const messages = [];
     let currentUser = null;
 
-    socket.on("receive_message", ({ sender, text }) => {
-      messages.push({ sender, text });
-      appendMessage(sender, text);
+    socket.on("receive_message", ({ sender, text, timestamp }) => {
+      messages.push({ sender, text, timestamp });
+      appendMessage(sender, text, timestamp);
     });
 
-    function appendMessage(sender, text) {
+    function appendMessage(sender, text, timestamp) {
       const chatBox = document.getElementById("chat-box");
       const msgDiv = document.createElement("div");
-      msgDiv.innerText = `${sender}: ${text}`;
+      msgDiv.innerHTML = `<strong>${sender}</strong>: ${text}<span class="message-time">${timestamp}</span>`;
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -69,7 +74,12 @@
     function sendMessage() {
       const text = document.getElementById("message").value.trim();
       if (!text || !currentUser) return;
-      socket.emit("send_message", { sender: currentUser, text });
+
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      messages.push({ sender: currentUser, text, timestamp });
+      socket.emit("send_message", { sender: currentUser, text, timestamp });
+
       document.getElementById("message").value = "";
     }
 

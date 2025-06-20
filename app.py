@@ -31,11 +31,13 @@ def analyze():
     return jsonify({"analysis": result})
 
 # === WebSocket handling ===
+
 @socketio.on("send_message")
-def handle_send_message(data):
+def handle_message(data):
     sender = data.get("sender")
     text = data.get("text")
-    emit("receive_message", {"sender": sender, "text": text}, broadcast=True)
+    timestamp = data.get("timestamp") or datetime.now().strftime("%H:%M")
+    emit("receive_message", {"sender": sender, "text": text, "timestamp": timestamp}, broadcast=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
