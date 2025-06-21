@@ -16,15 +16,10 @@
     #login-box {
       margin-bottom: 1em;
     }
-    .message-time {
-      font-size: 0.8em;
-      color: #888;
-      margin-left: 5px;
-    }
   </style>
 </head>
 <body>
-  <h1>🧠 雙人對話人格分析</h1>
+  <h1>🧠 淳蔚的手工聊天室</h1>
 
   <div id="login-box">
     <input type="text" id="username" placeholder="輸入你的名稱...">
@@ -45,7 +40,7 @@
 
   <script>
     const socket = io();
-    const messages = [];
+    let messages = [];
     let currentUser = null;
 
     socket.on("receive_message", ({ sender, text, timestamp }) => {
@@ -56,7 +51,7 @@
     function appendMessage(sender, text, timestamp) {
       const chatBox = document.getElementById("chat-box");
       const msgDiv = document.createElement("div");
-      msgDiv.innerHTML = `<strong>${sender}</strong>: ${text}<span class="message-time">${timestamp}</span>`;
+      msgDiv.innerText = `[${timestamp}] ${sender}: ${text}`;
       chatBox.appendChild(msgDiv);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -69,17 +64,13 @@
       localStorage.setItem("username", name);
       document.getElementById("login-box").style.display = "none";
       document.getElementById("chat-section").style.display = "block";
+      loadChat();
     }
 
     function sendMessage() {
       const text = document.getElementById("message").value.trim();
       if (!text || !currentUser) return;
-
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      messages.push({ sender: currentUser, text, timestamp });
-      socket.emit("send_message", { sender: currentUser, text, timestamp });
-
+      socket.emit("send_message", { sender: currentUser, text });
       document.getElementById("message").value = "";
     }
 
@@ -95,12 +86,25 @@
       });
     }
 
+    function loadChat() {
+      fetch("/load_chat")
+        .then(res => res.json())
+        .then(data => {
+          messages = data.messages;
+          document.getElementById("chat-box").innerHTML = "";
+          for (const msg of messages) {
+            appendMessage(msg.sender, msg.text, msg.timestamp);
+          }
+        });
+    }
+
     window.onload = function () {
       const storedName = localStorage.getItem("username");
       if (storedName) {
         currentUser = storedName;
         document.getElementById("login-box").style.display = "none";
         document.getElementById("chat-section").style.display = "block";
+        loadChat();
       }
 
       document.getElementById("message").addEventListener("keypress", function (e) {
