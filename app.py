@@ -1,64 +1,82 @@
 from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-import openai
+from dotenv import load_dotenv
+from datetime import datetime
 import os
-import datetime
+import json
+
+from openai import OpenAI  # ✅ 新版 SDK
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
-CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
-openai.api_key = os.getenv("OPENAI_API_KEY")
+CORS(app)
 
-# 全域聊天記錄，會每天中午清空
-chat_messages = []
+client = OpenAI(api_key=OPENAI_API_KEY)  # ✅ 新版 SDK 使用 client 物件
 
-def is_today():
-    return datetime.datetime.now().date()
+# ===== 儲存聊天紀錄用（部署後可換成資料庫）=====
+CHAT_LOG_FILE = "chat_log.json"
 
-last_reset_date = is_today()
+def save_chat(messages):
+    with open(CHAT_LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False)
 
+def load_chat():
+    if os.path.exists(CHAT_LOG_FILE):
+        with open(CHAT_LOG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+# ===== 路由區 =====
 @app.route("/")
 def index():
     return render_template("index.html")
 
+@app.route("/load_chat")
+def load_chat_route():
+    messages = load_chat()
+    return jsonify({"messages": messages})
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     messages = request.json.get("messages", [])
-    conversation = "\n".join([f"{msg['sender']}: {msg['text']}" for msg in messages])
 
-    prompt = f"""你是一位幽默但專業的心理學分析師。請根據以下對話紀錄，分析對話雙方的個性特質、溝通風格，並推測他們的互動關係與相處模式：
+    # 轉換為 GPT 所需格式
+    chat_log = [{"role": "user", "content": f"{msg['sender']}: {msg['text']}"} for msg in messages]
+    prompt = [
+        {"role": "system", "content": "你是一位聊天分析師，擅長根據對話紀錄分析兩位使用者的性格特質與相處風格，請用有趣且生動的語氣說明他們是什麼樣的組合角色。"},
+        *chat_log
+    ]
 
-{conversation}
+    # ✅ 使用新版 SDK 呼叫 chat
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=prompt,
+        temperature=0.7
+    )
 
-請用中文回答，語氣輕鬆但專業，不要只講重點，請用有趣的方式總結。"""
+    summary = response.choices[0].message.content.strip()
+    return jsonify({"analysis": summary})
 
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "你是一位擅長從對話分析人格與互動風格的心理學專家"},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        analysis = response.choices[0].message.content.strip()
-    except Exception as e:
-        analysis = f"分析失敗：{str(e)}"
-
-    return jsonify({"analysis": analysis})
-
+# ===== SocketIO 區 =====
 @socketio.on("send_message")
 def handle_send_message(data):
-    global last_reset_date
-    if is_today() != last_reset_date:
-        chat_messages.clear()
-        last_reset_date = is_today()
+    sender = data["sender"]
+    text = data["text"]
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    message = {"sender": sender, "text": text, "timestamp": timestamp}
 
-    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    data["timestamp"] = timestamp
-    chat_messages.append(data)
-    emit("receive_message", data, broadcast=True)
+    # 廣播訊息
+    emit("receive_message", message, broadcast=True)
+
+    # 儲存聊天紀錄
+    chat = load_chat()
+    chat.append(message)
+    save_chat(chat)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
